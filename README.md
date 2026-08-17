@@ -9,6 +9,46 @@ The validated Docker environment using CPython 3.14.6 and OpenSSL 3.5.7 successf
 
 ---
 
+## Decision Tree
+
+The entire Phase 0 feasibility check explicitly validates the following dependency tree to synthesize a mathematically constrained architecture check:
+
+```text
+                         PHASE 0
+                            │
+                            ▼
+                 OpenSSL 3.5.7 PQC support?
+                            │
+                           YES
+                            │
+                            ▼
+             Native OpenSSL PQC negotiation?
+                            │
+                           YES
+                            │
+                            ▼
+       Can Python SSLContext's underlying SSL_CTX
+       be safely configured through OpenSSL API?
+                       /             \
+                     YES              NO
+                      │                │
+                      ▼                ▼
+             asyncio + SSLContext    Alternative
+             + compatibility shim    binding required
+                      │
+                      ▼
+               mTLS + PQC TLS
+                      │
+                      ▼
+              X25519MLKEM768
+              verified
+                      │
+                      ▼
+                     GO
+```
+
+---
+
 ## 1. What exactly did we want to test?
 
 The objective of Phase 0 was to determine whether the proposed QS-TIE gateways could establish a **TLS 1.3 mutually authenticated connection using the hybrid post-quantum key-exchange group `X25519MLKEM768`** within the selected implementation environment:
@@ -226,14 +266,19 @@ The environment/ABI checks, OpenSSL pointer validation, repeated context creatio
 
 ---
 
-## 3. Test Results
+## 3. Reproducing the Test Results
 
-The feasibility spike can be executed by running:
+The feasibility spike operates completely contained within Docker and executes automatically. To run the full verification matrix and independently reproduce the test artifacts against the configured constraints, execute:
 
 ```bash
+# 1. Build the constrained container environment (Python 3.14.6 + OpenSSL 3.5.7)
 docker compose build
+
+# 2. Run the full matrix logic (generates all evidence files and prints decision matrix)
 docker compose run --rm phase0
 ```
+
+All resulting traces, process memory references, OpenSSL diagnostics, and capability results will be dynamically written to `./artifacts/evidence/`.
 
 ### Execution Output:
 
